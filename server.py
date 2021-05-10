@@ -13,13 +13,13 @@ class Blockchain:
         self.car = []
         #self.money = []
         self.new_block("Tony", "tony123", "Ferrari", '0')
-        self.new_user("Tony", "tony123")
+        self.add_user("Tony", "tony123")
 
     def new_block(self, username, password, car_value, previous_hash):
         block = {
             #'index': len(self.chain) + 1,
             "user": username,
-            "pwrd": password,
+            "pword": password,
             'car': car_value,
             'previous_hash': previous_hash or self.hash(self.chain[-1])
         }
@@ -30,7 +30,7 @@ class Blockchain:
         self.chain.append(block)
         return block
 
-    def new_user(self, username, password):
+    def add_user(self, username, password):
         self.users.append([username, password])
 
     def add_car(self, car_value):
@@ -41,59 +41,46 @@ class Blockchain:
         previous_block = self.chain[0]
         counter = 1
 
+        password = receive_message(notified_socket)
+        pword = password['data'].decode('utf-8')
+        
+        print(f"{pword}")
+
         while counter < len(self.chain):
             current_block = self.chain[counter]
             previous_hash = self.hash(previous_block)
             if current_block['previous_hash'] != previous_hash:
-                return False
+                print(f"Incorrect previous_hash")
+                #return False
             previous_block = current_block
             counter += 1
+
+        if self.buyer_password() != pword:
+            print(f"Incorrect password")
+            return False
+
+        print(f"Purchase validated")
         return True
 
-    def check_user(self, user, pword):
+    def user_login(self, user, pword):
         username = user['data'].decode('utf-8')
         password = pword['data'].decode('utf-8')
 
-        found = False
-
-        for x in self.users:
-            if x[0] == username:
-                found = True
-                if x[1] == password:
-                    return True
-                else:
-                    print(f"Incorrect password.")
-                    return False
-
-        if found == False:
-            self.users.append([username, password])
-            return True
-
-    def valid_buyer(self, user):
-        username = user['data'].decode('utf-8')
-        print(f"Current user: {username}")
-
-        password = receive_message(notified_socket)
-
-        print(f"{self.chain[len(self.chain)-1]['user']}")
-        if self.chain[len(self.chain)-1]['user'] == username:
-            print(f"You already own the vehicle!")
-            return False
-
-        for x in self.chain:
-            if x['user'] == username:
-                pwrd = password['data'].decode('utf-8')
-                if x['pwrd'] != pwrd:
-                    print(f"Incorrect password.")
-                    print(f"Purchase invalid.")
-                    return False
+        counter = 0
+        new_user = True
         
-        if self.check_user(user, password) is False:
-            print(f"Purchase invalid.")
-            return False
+        while counter < len(self.users):
+            current_block = self.users[counter]
+            if current_block[0] == username:
+                new_user = False
+                if current_block[1] != password:
+                    print(f"Incorrect password")
+                    return False
+            counter += 1
+        
+        if new_user == True:
+            self.add_user(username, password)
 
-
-        print(f"Purchase valid. You now own the vehicle.")
         return True
 
     def new_transaction(self, owner, car):
@@ -106,8 +93,6 @@ class Blockchain:
     def remove_transaction(self):
         self.transaction.pop()
         self.chain.pop()
-
-
 	
     @staticmethod
     def hash(block):
@@ -117,6 +102,13 @@ class Blockchain:
     @property
     def last_block(self):
         return self.chain[-1]
+    
+    def last_buyer(self):
+        return self.chain[len(self.chain) - 1]['user']
+    
+    def buyer_password(self):
+        print(f"{self.chain[len(self.chain) - 1]['pword']}")
+        return self.chain[len(self.chain) - 1]['pword']
 
     def print_blockchain(self):
         for x in self.chain: 
@@ -129,8 +121,7 @@ class Blockchain:
     def print_last(self):
         print (f"{self.chain[len(self.chain) - 1]}")
 
-
-
+        
 
 HEADER_LENGTH = 10 
 IP = "127.0.0.1"
@@ -174,16 +165,24 @@ while True:
             if user is False:
                 continue
             socket_list.append(client_socket)
-
-            password = receive_message(client_socket)
             clients[client_socket] = user
 
-            if block.check_user(user, password) is True:
-                message = f"Connection confirmed with user: {user['data'].decode('utf-8')}"
+            password = receive_message(client_socket)
+
+            if block.user_login(user, password) == False:
+                message = f""
                 message = message.encode("utf-8")
                 message_header = f"{len(message):<{HEADER_LENGTH}}".encode("utf-8")
-                print (f"Accepted new connection from {client_address[0]}:{client_address[1]} username:{user['data'].decode('utf-8')}, password: {password['data'].decode('utf-8')}")
                 client_socket.send(message_header + message)
+
+                user = receive_message(client_socket)
+                password = receive_message(client_socket)
+
+            message = f"Connection confirmed with user: {user['data'].decode('utf-8')}"
+            message = message.encode("utf-8")
+            message_header = f"{len(message):<{HEADER_LENGTH}}".encode("utf-8")
+            print (f"Accepted new connection from {client_address[0]}:{client_address[1]} username:{user['data'].decode('utf-8')}, password: {password['data'].decode('utf-8')}")
+            client_socket.send(message_header + message)
 
         else: 
             message = receive_message(notified_socket)
@@ -200,11 +199,15 @@ while True:
 
             if message['data'].decode('utf-8') == "PURCHASE":
                 #if (block.last_block().decode('utf-8') != user['data'].decode('utf-8')):
-                if block.valid_buyer(user) == True:
-                    block.new_block(f"{user['data'].decode('utf-8')}", f"{password['data'].decode('utf-8')}", "Ferarri", '0')
                 
-                block.validate()
-                #print(f"You already own the Vehicle!")
+                if block.last_buyer() != user['data'].decode('utf-8'):
+                    block.new_block(f"{user['data'].decode('utf-8')}", f"{password['data'].decode('utf-8')}", "Ferarri", '0')
+                    if block.validate() == False:
+                        print(f"Invalid purchase")
+                        block.remove_transaction()
+                else:
+                    print(f"You already own the Vehicle!")
+                
                 block.print_last()
 
             if message['data'].decode('utf-8') == "VIEW":
@@ -212,6 +215,14 @@ while True:
 
             if message['data'].decode('utf-8') == "USERS":
                 block.print_users() 
+            
+            if message['data'].decode('utf-8') == "Q":
+                print(f"Closed connection from {clients[notified_socket]['data'].decode('utf-8')}")
+                
+                socket_list.remove(notified_socket)
+                del clients[notified_socket]
+                continue
+                
             
 
             #Currently shows all clients messages that one has sent 
