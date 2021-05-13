@@ -1,61 +1,79 @@
-import socket 
-import select 
+import socket
+import select
 import hashlib
 import json
 from urllib.parse import urlparse
+
 
 class Blockchain:
     def __init__(self):
         self.chain = []  # blockchain
         self.transaction = []  # transaction to add to block
-        self.users = [] #list of users
+        self.users = []  # list of users
         #self.request = []
         self.car = []
         #self.money = []
         self.new_block("Tony", "tony123", "Ferrari", '0')
-        self.add_user("Tony", "tony123")
+        self.add_user("Tony", "tony123", 10000)
 
     def new_block(self, username, password, car_value, previous_hash):
         block = {
-            #'index': len(self.chain) + 1,
+            # 'index': len(self.chain) + 1,
             "user": username,
             "pword": password,
             'car': car_value,
             'previous_hash': previous_hash or self.hash(self.chain[-1])
         }
-        self.transaction.append([username, car_value]) #add money or additional features 
+        # add money or additional features
+        self.transaction.append([username, car_value])
 
         #self.request = []
         #self.car = []
         self.chain.append(block)
         return block
 
-    def add_user(self, username, password):
-        self.users.append([username, password])
+    def add_user(self, username, password, money):
+        self.users.append([username, password, money])
+
+    def add_money(self, username, money):
+        # money = receive_message(notified_socket)
+        # money = int(money['data'].decode('utf-8'))
+
+        for x in self.users:
+            if username == x[0]:
+                x[2] += money
+        
+        print(f"Added {money} to account")
+        
+    def remove_money(self, username, money):
+        for x in self.users:
+            if username == x[0]:
+                x[2] -= money
+        
+        print(f"Added {money} to account")
 
     def add_car(self, car_value):
         self.car.append(car_value)
 
     # validate chain by checking previous hashes
+
     def validate(self):
         previous_block = self.chain[0]
         counter = 1
 
         password = receive_message(notified_socket)
-        pword = password['data'].decode('utf-8')
-        
-        print(f"{pword}")
+        password = password['data'].decode('utf-8')
 
         while counter < len(self.chain):
             current_block = self.chain[counter]
             previous_hash = self.hash(previous_block)
             if current_block['previous_hash'] != previous_hash:
                 print(f"Incorrect previous_hash")
-                #return False
+                # return False
             previous_block = current_block
             counter += 1
 
-        if self.buyer_password() != pword:
+        if self.buyer_password() != password:
             print(f"Incorrect password")
             return False
 
@@ -68,7 +86,7 @@ class Blockchain:
 
         counter = 0
         new_user = True
-        
+
         while counter < len(self.users):
             current_block = self.users[counter]
             if current_block[0] == username:
@@ -77,9 +95,9 @@ class Blockchain:
                     print(f"Incorrect password")
                     return False
             counter += 1
-        
+
         if new_user == True:
-            self.add_user(username, password)
+            self.add_user(username, password, 0)
 
         return True
 
@@ -93,7 +111,7 @@ class Blockchain:
     def remove_transaction(self):
         self.transaction.pop()
         self.chain.pop()
-	
+
     @staticmethod
     def hash(block):
         block_hash = json.dumps(block, sort_keys=True).encode()
@@ -102,28 +120,33 @@ class Blockchain:
     @property
     def last_block(self):
         return self.chain[-1]
-    
+
     def last_buyer(self):
         return self.chain[len(self.chain) - 1]['user']
-    
+
     def buyer_password(self):
         print(f"{self.chain[len(self.chain) - 1]['pword']}")
         return self.chain[len(self.chain) - 1]['pword']
 
+    def get_password(self, user):
+        for x in self.users:
+            if x[0] == user:
+                return x[1]
+
     def print_blockchain(self):
-        for x in self.chain: 
-            print (f"{x}")
+        for x in self.chain:
+            print(f"{x}")
 
     def print_users(self):
         for x in self.users:
-            print (f"{x}")
+            print(f"{x}")
 
     def print_last(self):
-        print (f"{self.chain[len(self.chain) - 1]}")
+        print(f"{self.chain[len(self.chain) - 1]}")
 
-        
 
-HEADER_LENGTH = 10 
+
+HEADER_LENGTH = 10
 IP = "127.0.0.1"
 PORT = 1234
 
@@ -133,10 +156,11 @@ server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 server_socket.bind((IP, PORT))
 server_socket.listen()
 
-socket_list = [server_socket] #list of all sockets server interacts with (including server) 
+# list of all sockets server interacts with (including server)
+socket_list = [server_socket]
 
 
-clients = {} #individual client identifiers 
+clients = {}  # individual client identifiers
 
 
 def receive_message(client_socket):
@@ -152,12 +176,20 @@ def receive_message(client_socket):
     except:
         return False
 
+
 block = Blockchain()
+seller = ""
+buyer = ""
+temp = ""
+seller_id = 0
+buyer_id = 0
+temp_id = 0
 
-while True: 
-    read_sockets, _, exception_sockets = select.select(socket_list, [], socket_list)  
+while True:
+    read_sockets, _, exception_sockets = select.select(
+        socket_list, [], socket_list)
 
-    for notified_socket in read_sockets: 
+    for notified_socket in read_sockets:
         if notified_socket == server_socket:
             client_socket, client_address = server_socket.accept()
 
@@ -172,63 +204,179 @@ while True:
             if block.user_login(user, password) == False:
                 message = f""
                 message = message.encode("utf-8")
-                message_header = f"{len(message):<{HEADER_LENGTH}}".encode("utf-8")
+                message_header = f"{len(message):<{HEADER_LENGTH}}".encode(
+                    "utf-8")
                 client_socket.send(message_header + message)
 
                 user = receive_message(client_socket)
                 password = receive_message(client_socket)
+            
+            if user['data'].decode('utf-8') != block.last_buyer():
+                buyer = user['data'].decode('utf-8')
+                buyer_id = client_socket
+            else:
+                seller = user['data'].decode('utf-8')
+                seller_id = client_socket
 
             message = f"Connection confirmed with user: {user['data'].decode('utf-8')}"
             message = message.encode("utf-8")
             message_header = f"{len(message):<{HEADER_LENGTH}}".encode("utf-8")
-            print (f"Accepted new connection from {client_address[0]}:{client_address[1]} username:{user['data'].decode('utf-8')}, password: {password['data'].decode('utf-8')}")
+            print(f"Accepted new connection from {client_address[0]}:{client_address[1]} username:{user['data'].decode('utf-8')}, password: {password['data'].decode('utf-8')}")
             client_socket.send(message_header + message)
 
-        else: 
+            if seller == user['data'].decode('utf-8'):
+                message = f"SELLER"
+                message = message.encode("utf-8")
+                message_header = f"{len(message):<{HEADER_LENGTH}}".encode("utf-8")
+                client_socket.send(message_header + message)
+            else:
+                message = f"BUYER"
+                message = message.encode("utf-8")
+                message_header = f"{len(message):<{HEADER_LENGTH}}".encode("utf-8")
+                client_socket.send(message_header + message)
+
+        else:
             message = receive_message(notified_socket)
 
+            if notified_socket == buyer_id:
+                user = buyer
+            elif notified_socket == seller_id:
+                user = seller
+
             if message is False:
-                print(f"Closed connection from {clients[notified_socket]['data'].decode('utf-8')}")
+                print(
+                    f"Closed connection from {clients[notified_socket]['data'].decode('utf-8')}")
                 socket_list.remove(notified_socket)
                 del clients[notified_socket]
                 continue
 
-            user = clients[notified_socket]
+            print(f"Received message from {user}: {message['data'].decode('utf-8')}")
 
-            print(f"Received message from {user['data'].decode('utf-8')}: {message['data'].decode('utf-8')}")
+            # if message['data'].decode('utf-8') == "PURCHASE":
+            #     # if (block.last_block().decode('utf-8') != user['data'].decode('utf-8')):
+            #     if block.last_buyer() != user['data'].decode('utf-8'):
+            #         block.new_block(f"{user['data'].decode('utf-8')}",
+            #                         f"{password['data'].decode('utf-8')}", "Ferarri", '0')
+            #         if block.validate() == False:
+            #             print(f"Invalid purchase")
+            #             block.remove_transaction()
+            #     else:
+            #         print(f"You already own the Vehicle!")
 
+            #     block.print_last()
             if message['data'].decode('utf-8') == "PURCHASE":
-                #if (block.last_block().decode('utf-8') != user['data'].decode('utf-8')):
-                
-                if block.last_buyer() != user['data'].decode('utf-8'):
-                    block.new_block(f"{user['data'].decode('utf-8')}", f"{password['data'].decode('utf-8')}", "Ferarri", '0')
-                    if block.validate() == False:
-                        print(f"Invalid purchase")
-                        block.remove_transaction()
+                print(f"buyer: {buyer}, seller: {seller}")
+                print(f"buyer socket: {buyer_id}, seller socket: {seller_id}")
+                #send purchase to SELLER
+                request = f"{buyer} would like to buy your car. Sell?"
+                request = request.encode("utf-8")
+                request_header = f"{len(request):<{HEADER_LENGTH}}".encode("utf-8")
+                seller_id.send(request_header + request)
+
+                #send purchase to BUYER
+                request = f"Purchase request sent to {seller}"
+                request = request.encode("utf-8")
+                request_header = f"{len(request):<{HEADER_LENGTH}}".encode("utf-8")
+                buyer_id.send(request_header + request)
+
+                #receive SELLER response
+                response = receive_message(seller_id)
+                if response['data'].decode('utf-8') == "Y":
+                    #send response to BUYER
+                    request = f"Request approved. Please input password:"
+                    request = request.encode("utf-8")
+                    request_header = f"{len(request):<{HEADER_LENGTH}}".encode("utf-8")
+                    buyer_id.send(request_header + request)
+
+                    #send response to SELLER
+                    request = f"Accepted request. Waiting for payment."
+                    request = request.encode("utf-8")
+                    request_header = f"{len(request):<{HEADER_LENGTH}}".encode("utf-8")
+                    seller_id.send(request_header + request)
+
+                    #receive payment from BUYER
+                    response = receive_message(buyer_id)
+                    print(f"{block.get_password(buyer)}")
+                    if response['data'].decode('utf-8') == block.get_password(buyer):
+                        block.new_block(f"{buyer}", f"{block.get_password(buyer)}", "Ferarri", '0')
+                        block.add_money(seller, 10000)
+                        block.remove_money(buyer, 10000)
+
+                        #send response to BUYER
+                        request = f"Payment sent. You now own the car."
+                        request = request.encode("utf-8")
+                        request_header = f"{len(request):<{HEADER_LENGTH}}".encode("utf-8")
+                        buyer_id.send(request_header + request)
+
+                        #send response to SELLER
+                        request = f"Payment received. The car has been sold."
+                        request = request.encode("utf-8")
+                        request_header = f"{len(request):<{HEADER_LENGTH}}".encode("utf-8")
+                        seller_id.send(request_header + request)
+
+                        temp = buyer
+                        buyer = seller
+                        seller = temp
+                        temp = ""
+
+                        temp_id = buyer_id
+                        buyer_id = seller_id
+                        seller_id = temp_id 
+                        temp_id  = 0
+
+                        print(f"buyer: {buyer}, seller: {seller}")
+                        print(f"buyer socket: {buyer_id}, seller socket: {seller_id}")
+
+                    else:
+                        #send response to BUYER
+                        request = f"Password incorrect. Purchase invalid."
+                        request = request.encode("utf-8")
+                        request_header = f"{len(request):<{HEADER_LENGTH}}".encode("utf-8")
+                        buyer_id.send(request_header + request)
+
+                        #send response to SELLER
+                        request = f"Buyer invalid. Purchase incomplete."
+                        request = request.encode("utf-8")
+                        request_header = f"{len(request):<{HEADER_LENGTH}}".encode("utf-8")
+                        seller_id.send(request_header + request)
                 else:
-                    print(f"You already own the Vehicle!")
-                
-                block.print_last()
+                    #send response to BUYER
+                    request = f"Request denied."
+                    request = request.encode("utf-8")
+                    request_header = f"{len(request):<{HEADER_LENGTH}}".encode("utf-8")
+                    buyer_id.send(request_header + request)
+
+                    #send response to SELLER
+                    request = f"Rejected request. Car will not be sold."
+                    request = request.encode("utf-8")
+                    request_header = f"{len(request):<{HEADER_LENGTH}}".encode("utf-8")
+                    seller_id.send(request_header + request)
 
             if message['data'].decode('utf-8') == "VIEW":
-                block.print_blockchain() 
+                block.print_blockchain()
 
             if message['data'].decode('utf-8') == "USERS":
-                block.print_users() 
-            
+                block.print_users()
+
+            if message['data'].decode('utf-8') == "ADD":
+                money = receive_message(notified_socket)
+                money = int(money['data'].decode('utf-8'))
+
+                block.add_money(user, money)
+
             if message['data'].decode('utf-8') == "Q":
-                print(f"Closed connection from {clients[notified_socket]['data'].decode('utf-8')}")
-                
+                print(
+                    f"Closed connection from {clients[notified_socket]['data'].decode('utf-8')}")
+
                 socket_list.remove(notified_socket)
                 del clients[notified_socket]
                 continue
-                
-            
 
-            #Currently shows all clients messages that one has sent 
-            for client_socket in clients: 
-                if client_socket != notified_socket:
-                    client_socket.send(user['header'] + user['data'] + message['header'] + message['data'])
+            # Currently shows all clients messages that one has sent
+            # for client_socket in clients:
+            #     if client_socket != notified_socket:
+            #         client_socket.send(
+            #             user['header'] + user['data'] + message['header'] + message['data'])
 
         for notified_socket in exception_sockets:
             socket_list.remove(notified_socket)
