@@ -125,6 +125,11 @@ class Blockchain:
         block_hash = json.dumps(block, sort_keys=True).encode()
         return hashlib.sha256(block_hash).hexdigest()
 
+    def new_hash(self):
+        last_block = self.last_block
+        previous_hash = self.hash(last_block)
+        return previous_hash
+        
     @property
     def last_block(self):
         return self.chain[-1]
@@ -335,7 +340,8 @@ while True:
                     response = receive_message(buyer_id)
                     print(f"{block.get_password(buyer)}")
                     if response['data'].decode('utf-8') == block.get_password(buyer):
-                        block.new_block(f"{buyer}", f"{block.get_password(buyer)}", "Ferarri", '0')
+                        previous_hash=block.new_hash()
+                        block.new_block(f"{buyer}", f"{block.get_password(buyer)}", "Ferarri", previous_hash)
                         block.add_money(seller, 10000)
                         block.remove_money(buyer, 10000)
 
