@@ -13,8 +13,16 @@ class Blockchain:
         #self.request = []
         self.car = []
         #self.money = []
-        self.new_block("Tony", "tony123", "Ferrari", '0')
-        self.add_user("Tony", "tony123", 10000)
+        self.new_block("Tom", "tom123", "Ferrari", '0')
+        self.add_user("Tom", "tom123", 10000)
+        self.add_user("Jery", "jery456", 10000)
+
+    def new_transaction(self, owner, car):
+        self.transaction.append({
+            'owner': owner,
+            'car': car
+        })
+        return self.last_block['index'] + 1
 
     def new_block(self, username, password, car_value, previous_hash):
         block = {
@@ -31,6 +39,7 @@ class Blockchain:
         #self.car = []
         self.chain.append(block)
         return block
+
 
     def add_user(self, username, password, money):
         self.users.append([username, password, money])
@@ -55,8 +64,14 @@ class Blockchain:
     def add_car(self, car_value):
         self.car.append(car_value)
 
-    # validate chain by checking previous hashes
+    def get_money(self, username):
+        for x in self.users: 
+            if x[0] == username:
+                return x[2]
+        print("User Not found")
+        return 0;
 
+    # validate chain by checking previous hashes
     def validate(self):
         previous_block = self.chain[0]
         counter = 1
@@ -101,13 +116,6 @@ class Blockchain:
 
         return True
 
-    def new_transaction(self, owner, car):
-        self.transaction.append({
-            'owner': owner,
-            'car': car
-        })
-        return self.last_block['index'] + 1
-
     def remove_transaction(self):
         self.transaction.pop()
         self.chain.pop()
@@ -140,6 +148,22 @@ class Blockchain:
     def print_users(self):
         for x in self.users:
             print(f"{x}")
+
+    def users_string(self):
+        us = ""
+        counter = 1
+        for x in self.users:
+            us += f"{counter}: " + f"{x[0]} \n"
+            counter+=1 
+        return us
+
+    def view_string(self):
+        view = ""
+        counter = 1
+        for x in self.chain:
+            view += f"{counter}: {x['user']}, {x['car']} \n"
+            counter += 1
+        return view
 
     def print_last(self):
         print(f"{self.chain[len(self.chain) - 1]}")
@@ -265,8 +289,21 @@ while True:
 
             #     block.print_last()
             if message['data'].decode('utf-8') == "PURCHASE":
-                print(f"buyer: {buyer}, seller: {seller}")
-                print(f"buyer socket: {buyer_id}, seller socket: {seller_id}")
+                #Buyer Insufficient Funds
+                if block.get_money(buyer) <= 10000:
+                    #send response to BUYER
+                    request = f"Insufficient Funds."
+                    request = request.encode("utf-8")
+                    request_header = f"{len(request):<{HEADER_LENGTH}}".encode("utf-8")
+                    buyer_id.send(request_header + request)
+                    continue
+                else:
+                    #send response to BUYER
+                    request = f"Sufficient Funds."
+                    request = request.encode("utf-8")
+                    request_header = f"{len(request):<{HEADER_LENGTH}}".encode("utf-8")
+                    buyer_id.send(request_header + request)
+
                 #send purchase to SELLER
                 request = f"{buyer} would like to buy your car. Sell?"
                 request = request.encode("utf-8")
@@ -323,10 +360,6 @@ while True:
                         buyer_id = seller_id
                         seller_id = temp_id 
                         temp_id  = 0
-
-                        print(f"buyer: {buyer}, seller: {seller}")
-                        print(f"buyer socket: {buyer_id}, seller socket: {seller_id}")
-
                     else:
                         #send response to BUYER
                         request = f"Password incorrect. Purchase invalid."
@@ -339,6 +372,7 @@ while True:
                         request = request.encode("utf-8")
                         request_header = f"{len(request):<{HEADER_LENGTH}}".encode("utf-8")
                         seller_id.send(request_header + request)
+
                 else:
                     #send response to BUYER
                     request = f"Request denied."
@@ -353,10 +387,28 @@ while True:
                     seller_id.send(request_header + request)
 
             if message['data'].decode('utf-8') == "VIEW":
+                uss = block.view_string()
+                msg = uss.encode("utf-8")
+                msg_header = f"{len(msg):<{HEADER_LENGTH}}".encode("utf-8")
+                notified_socket.send(msg_header + msg)
+
                 block.print_blockchain()
 
             if message['data'].decode('utf-8') == "USERS":
+                uss = block.users_string()
+                msg = uss.encode("utf-8")
+                msg_header = f"{len(msg):<{HEADER_LENGTH}}".encode("utf-8")
+                notified_socket.send(msg_header + msg)
+
                 block.print_users()
+
+            if message['data'].decode('utf-8') == "BALANCE":
+                uss = f"Current Balance = {str(block.get_money(user))} \n"
+                print (uss)
+                msg = uss.encode("utf-8")
+                msg_header = f"{len(msg):<{HEADER_LENGTH}}".encode("utf-8")
+                notified_socket.send(msg_header + msg)
+                
 
             if message['data'].decode('utf-8') == "ADD":
                 money = receive_message(notified_socket)
