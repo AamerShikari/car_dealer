@@ -48,11 +48,33 @@ while True:
 
     message = input(f"{my_username} > ")
 
-    if message == "PURCHASE" and status == "BUYER":
+    if message == "USERS" or message == "BALANCE" or message == "VIEW":
+
         #sending purchase request
         message = message.encode("utf-8")
         message_header = f"{len(message) :< {HEADER_LENGTH}}".encode("utf-8")
         client_socket.send(message_header + message)
+
+        #receive SELLER response
+        message_header = client_socket.recv(HEADER_LENGTH)
+        message_length = int(message_header.decode("utf-8").strip())
+        message = client_socket.recv(message_length).decode("utf-8")
+        print(f"{message}")
+
+
+    elif message == "PURCHASE" and status == "BUYER":
+        #sending purchase request
+        message = message.encode("utf-8")
+        message_header = f"{len(message) :< {HEADER_LENGTH}}".encode("utf-8")
+        client_socket.send(message_header + message)
+
+        #receive request confirmation
+        message_header = client_socket.recv(HEADER_LENGTH)
+        message_length = int(message_header.decode("utf-8").strip())
+        message = client_socket.recv(message_length).decode("utf-8")
+        print(f"Server > {message}")
+        if message == "Insufficient Funds.":
+            continue
 
         #receive request confirmation
         message_header = client_socket.recv(HEADER_LENGTH)
