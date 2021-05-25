@@ -13,7 +13,7 @@ class Blockchain:
         #self.request = []
         self.car = []
         #self.money = []
-        self.new_block("Tom", "tom123", "Ferrari", '0')
+        self.new_block("Tom", "tom123", "Ferrari", "FIRST", '0')
         self.add_user("Tom", "tom123", 10000)
         self.add_user("Jery", "jery456", 10000)
 
@@ -24,12 +24,13 @@ class Blockchain:
         })
         return self.last_block['index'] + 1
 
-    def new_block(self, username, password, car_value, previous_hash):
+    def new_block(self, username, password, car_value, previous_owner, previous_hash):
         block = {
             # 'index': len(self.chain) + 1,
             "user": username,
             "pword": password,
             'car': car_value,
+            'po': previous_owner,
             'previous_hash': previous_hash or self.hash(self.chain[-1])
         }
         # add money or additional features
@@ -162,13 +163,38 @@ class Blockchain:
             counter+=1 
         return us
 
-    def view_string(self):
+    def history_string(self):
         view = ""
         counter = 1
         for x in self.chain:
-            view += f"{counter}: {x['user']}, {x['car']} \n"
+            view += f"{counter}: Buyer: {x['user']}, Vehicle: {x['car']}, Seller: {x['po']} \n"
             counter += 1
         return view
+
+    def view_string(self, user): 
+        view = ""
+        counter = 1
+        
+        for x in self.chain: 
+            if (user == x['user'] or user == x['po']):
+                view += f"{counter}: Buyer: {x['user']}, Vehicle: {x['car']}, Seller: {x['po']} \n"
+                counter += 1
+        if counter == 1:
+            view = "You have made no transactions."
+
+        return view
+
+    def available_string(self, user):
+        view = ""
+        x = self.chain[len(self.chain) - 1]
+        counter = 1
+        if user != x['user']: 
+            view = f"{counter}: Buyer: {x['user']}, Vehicle: {x['car']}, Seller: {x['po']} \n"
+        else: 
+            view = "No available vehicles"
+
+        return view
+
 
     def print_last(self):
         print(f"{self.chain[len(self.chain) - 1]}")
@@ -281,18 +307,7 @@ while True:
 
             print(f"Received message from {user}: {message['data'].decode('utf-8')}")
 
-            # if message['data'].decode('utf-8') == "PURCHASE":
-            #     # if (block.last_block().decode('utf-8') != user['data'].decode('utf-8')):
-            #     if block.last_buyer() != user['data'].decode('utf-8'):
-            #         block.new_block(f"{user['data'].decode('utf-8')}",
-            #                         f"{password['data'].decode('utf-8')}", "Ferarri", '0')
-            #         if block.validate() == False:
-            #             print(f"Invalid purchase")
-            #             block.remove_transaction()
-            #     else:
-            #         print(f"You already own the Vehicle!")
 
-            #     block.print_last()
             if message['data'].decode('utf-8') == "PURCHASE":
                 #Buyer Insufficient Funds
                 if block.get_money(buyer) <= 10000:
@@ -341,7 +356,7 @@ while True:
                     print(f"{block.get_password(buyer)}")
                     if response['data'].decode('utf-8') == block.get_password(buyer):
                         previous_hash=block.new_hash()
-                        block.new_block(f"{buyer}", f"{block.get_password(buyer)}", "Ferarri", previous_hash)
+                        block.new_block(f"{buyer}", f"{block.get_password(buyer)}", "Ferarri", f"{block.last_buyer()}", previous_hash)
                         block.add_money(seller, 10000)
                         block.remove_money(buyer, 10000)
 
@@ -392,12 +407,25 @@ while True:
                     request_header = f"{len(request):<{HEADER_LENGTH}}".encode("utf-8")
                     seller_id.send(request_header + request)
 
-            if message['data'].decode('utf-8') == "VIEW":
-                uss = block.view_string()
+            if message['data'].decode('utf-8') == "HISTORY":
+                uss = block.history_string()
                 msg = uss.encode("utf-8")
                 msg_header = f"{len(msg):<{HEADER_LENGTH}}".encode("utf-8")
                 notified_socket.send(msg_header + msg)
+                block.print_blockchain()
+            
+            if message['data'].decode('utf-8') == "VIEW":
+                uss = block.view_string(clients[notified_socket]['data'].decode("utf-8"))
+                msg = uss.encode('utf-8')
+                msg_header = f"{len(msg):<{HEADER_LENGTH}}".encode("utf-8")
+                notified_socket.send(msg_header + msg)  
+                block.print_blockchain()
 
+            if message['data'].decode('utf-8') == "AVAILABLE":
+                uss = block.available_string(clients[notified_socket]['data'].decode("utf-8"))
+                msg = uss.encode('utf-8')
+                msg_header = f"{len(msg):<{HEADER_LENGTH}}".encode("utf-8")
+                notified_socket.send(msg_header + msg)  
                 block.print_blockchain()
 
             if message['data'].decode('utf-8') == "USERS":

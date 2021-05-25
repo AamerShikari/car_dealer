@@ -48,7 +48,7 @@ while True:
 
     message = input(f"{my_username} > ")
 
-    if message == "USERS" or message == "BALANCE" or message == "VIEW":
+    if message == "USERS" or message == "BALANCE" or message == "HISTORY" or message == "VIEW" or message == "AVAILABLE":
 
         #sending purchase request
         message = message.encode("utf-8")
