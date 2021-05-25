@@ -7,12 +7,12 @@
 3. For the client terminals run "python3 client.py"
 4. For the server terminal run "python3 server.py"
 
-# Functions <h1> 
-  # Buyers have access to - 
+# Functions 
+  ## Buyers - 
   * PURCHASE
-  # Sellers have access to - 
+  ## Sellers - 
   * SELL
-  # Both have access to - 
+  ## Both - 
   * ADD
   * VIEW
   * HISTORY
