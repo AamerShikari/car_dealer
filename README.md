@@ -1,9 +1,9 @@
 # Car_dealer
 #A network implementation of blockchain to monitor/manage transactions that exchanged vehicles for cash in a secure manner
 
-#Logic
+# Logic <h1> tag
 
-*Buyer sends a request to DMV with the seller’s id and the money required for the purchase.
+* Item 1 Buyer sends a request to DMV with the seller’s id and the money required for the purchase.
 
 *DMV finds the seller and request the car from that seller.
 
