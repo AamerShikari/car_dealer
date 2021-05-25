@@ -4,9 +4,19 @@
 # How to Run <h1> 
 1. Clone Repository 
 2. Open two terminals (One for the client and one for the server)
-  a. For the client terminals run "python3 client.py"
-  b. For the server terminal run "python3 server.py"
+3. For the client terminals run "python3 client.py"
+4. For the server terminal run "python3 server.py"
 
+# Functions <h1> 
+  # Buyers have access to - 
+  * PURCHASE
+  # Sellers have access to - 
+  * SELL
+  # Both have access to - 
+  * ADD
+  * VIEW
+  * HISTORY
+  * AVAILABLE
 
 # Logic <h1>
 
