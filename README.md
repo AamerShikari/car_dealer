@@ -9,9 +9,9 @@ A network implementation of blockchain to monitor/manage transactions that excha
 
 # Functions 
   ## Buyers - 
-  * PURCHASE
+  * PURCHASE -> Sends a request to the seller (if they are logged in) and will require a password once confirmation is recieved
   ## Sellers - 
-  * SELL
+  * SELL -> Sends a request to the buyer to confirm intent and will notify if the transaction was successful or not
   ## Both - 
   * ADD
   * VIEW
